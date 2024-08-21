@@ -139,7 +139,7 @@ const logOutUser = asyncHandler(async (req, res) => {
     User.findByIdAndUpdate(
       req.user._id,
       {
-        $set: { refreshToken: undefined },
+        $unset: { refreshToken: 1 },
       },
       { new: true }
     );
@@ -325,11 +325,87 @@ const updateCoverImage = asyncHandler(async (req, res) => {
   }
 });
 
+// const getUserChannelProfile = asyncHandler(async (req, res) => {
+//   try {
+//     const { userName } = req.params;
+
+//     if (!userName?.trim()) throw new ApiError(400, "Username is missing");
+
+//     const channel = await User.aggregate([
+//       {
+//         $match: {
+//           userName: userName?.toLowerCase(),
+//         },
+//       },
+//       {
+//         $lookup: {
+//           from: "subscriptions",
+//           localField: "_id",
+//           foreignField: "channel",
+//           as: "subscribers",
+//         },
+//       },
+//       {
+//         $lookup: {
+//           from: "subscriptions",
+//           localField: "_id",
+//           foreignField: "subscribers",
+//           as: "subscribedTo",
+//         },
+//       },
+//       {
+//         $addFields: {
+//           subscribersCount: {
+//             $size: "$subscribers",
+//           },
+//           channelsToCount: {
+//             $size: "$subscribedTo",
+//           },
+//           isSubscribed: {
+//             $cond: {
+//               if: { $in: [req.user?._id, "subscribers.subscriber"] },
+//               then: true,
+//               else: false,
+//             },
+//           },
+//         },
+//       },
+//       {
+//         $project: {
+//           fullName: 1,
+//           userName: 1,
+//           subscribersCount: 1,
+//           channelsToCount: 1,
+//           isSubscribed: 1,
+//           avatar: 1,
+//           coverImage: 1,
+//           email: 1,
+//         },
+//       },
+//     ]);
+
+//     if (!channel?.length) throw new ApiError(404, "channel does not exist");
+//     console.log(channel);
+//     res.status(200).json({
+//       data: channel[0],
+//       message: "User channel fetched Successfully",
+//     });
+//   } catch (error) {
+//     console.log(error);
+//     return res.status(500).json({
+//       message: error.message,
+//       success: false,
+//     });
+//   }
+// });
+
 const getUserChannelProfile = asyncHandler(async (req, res) => {
   try {
     const { userName } = req.params;
 
-    if (!userName?.trim()) throw new ApiError(400, "Username is missing");
+    if (!userName?.trim()) {
+      throw new ApiError(400, "Username is missing");
+    }
 
     const channel = await User.aggregate([
       {
@@ -363,7 +439,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
           },
           isSubscribed: {
             $cond: {
-              if: { $in: [req.user?._id, "subscribers.subscriber"] },
+              if: { $in: [req.user?._id, "$subscribers.subscriber"] },
               then: true,
               else: false,
             },
@@ -384,14 +460,16 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
       },
     ]);
 
-    if (!channel?.length) throw new ApiError(404, "channel does not exist");
-    console.log(channel);
+    if (!channel?.length) {
+      throw new ApiError(404, "Channel does not exist");
+    }
+
     res.status(200).json({
       data: channel[0],
-      message: "User channel fetched Successfully",
+      message: "User channel fetched successfully",
     });
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return res.status(500).json({
       message: error.message,
       success: false,
